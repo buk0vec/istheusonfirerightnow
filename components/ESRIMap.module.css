@@ -1,0 +1,11 @@
+/*
+  ESRIMap.module.css
+  CSS for the ESRIMap component
+*/
+
+.mapDiv {
+  padding: 0;
+  margin: 0;
+  height: 800px;
+  width: 100%;
+}
