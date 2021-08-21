@@ -2,7 +2,7 @@
   ESRIMap.tsx
   Contains component for wrapped ArcGIS JS map.
 */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
 import esriConfig from "@arcgis/core/config";
@@ -11,30 +11,33 @@ import Extent from "@arcgis/core/geometry/Extent";
 import VectorTileLayer from "@arcgis/core/layers/VectorTileLayer";
 import Basemap from "@arcgis/core/Basemap";
 import { ESRI_KEY } from "../api-keys"
+import useSWR from 'swr' 
+import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol"
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer"
+import Graphic from "@arcgis/core/Graphic"
+import Point from "@arcgis/core/geometry/Point"
+import Polygon from "@arcgis/core/geometry/Polygon"
+import { FirePoint } from "../types/fire-points"
+import { FireArea } from "../types/fire-areas"
 
 // TODO: Finish typing the data that will be passed to the Map
 interface ESRIMapProps {
-  data: any,
+  firePoints: FirePoint[],
+  fireAreas: FireArea[]
 }
 
-// Wrapped map component
-const ESRIMap = (props: ESRIMapProps) => {
-  // For ref'ing div to MapView
-  const mapDiv = useRef(null);
+// Fetcher for useSWR
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-  // TODO: Figure out if this is needed. Probably not. Just limits map extent
-  const limitMapExtent = (view: MapView) => {
-    var initialExtent = view.extent;
-    view.watch("stationary", (event) => {
-      if (!event) {
-        return;
-      }
-      var currentCenter = view.extent.center;
-      if (!initialExtent.contains(currentCenter)) {
-        view.goTo([-103.852, 44.674]);
-      }
-    });
-  };
+// Wrapped map component
+const ESRIMap = ({ firePoints, fireAreas }: ESRIMapProps) => {
+  // For ref'ing div to MapView
+  console.log("Component loading...")
+  const mapDiv = useRef(null);
+  const [graphLayer, setGraphLayer] = useState<GraphicsLayer>(null)
+  // For fire point data
+  // const { data: firePoints, error: fperror} = useSWR('/api/get-fire-points', fetcher)
+  // const { data: fireAreas, error: faerror} = useSWR('/api/get-fire-areas', fetcher)
   // On startup
   useEffect(() => {
     // Connect to API
@@ -42,6 +45,12 @@ const ESRIMap = (props: ESRIMapProps) => {
     // Limits to MapView
     // TODO: Math out how big this must be
     const boundingBox: Extent = new Extent({
+      xmin: -125.36,
+      xmax: -66.54,
+      ymin: 25.47,
+      ymax: 49.84,
+    });
+    const baricadeBox: Extent = new Extent({
       xmin: -125.36,
       xmax: -66.54,
       ymin: 25.47,
@@ -66,10 +75,14 @@ const ESRIMap = (props: ESRIMapProps) => {
       container: mapDiv.current, // Set to div
       extent: boundingBox,
       center: [-95.95, 37.655],
-      zoom: 3.8,
-      constraints: { minZoom: 3, geometry: boundingBox, snapToZoom: false }, // Limited to box
+      zoom: 4,
+      constraints: { minZoom: 4, 
+        geometry: baricadeBox, 
+        snapToZoom: false }, // Limited to box
     });
-    view.when(() => limitMapExtent(view)); // Attempt to limit view (idk if i need this)
+    const graphicsLayer = new GraphicsLayer();
+    myMap.add(graphicsLayer);
+    setGraphLayer(graphicsLayer)
     view.when(
       () => {
         // All the resources in the MapView and the map have loaded. Now execute additional processes
@@ -84,10 +97,64 @@ const ESRIMap = (props: ESRIMapProps) => {
       view && view.destroy(); // Cleanup
     };
   }, []);
-  // Div wrapper
-  return <div>
-    <div className={styles.mapDiv} ref={mapDiv}></div> 
-    </div>
+  useEffect(() => {
+    if (firePoints && graphLayer) {
+      console.log("Marking down points...")
+      console.log("Here are the firepoints from ESRIMap:")
+      console.log(firePoints)
+      console.log("================")
+      const simpleMarkerSymbol: PictureMarkerSymbol = {
+        type: "picture-marker",
+        url: "/fireicon.png",
+        width: "20px",
+        height: "20px"
+       } as unknown as PictureMarkerSymbol;
+      const popupTemplate = {
+        title: "{Name}"
+      }
+      firePoints.forEach((point: FirePoint) => {
+        const tPoint: Point = new Point({
+          longitude: point.geometry.x,
+          latitude: point.geometry.y
+        })
+        const attr = {
+          Name: point.attributes.IncedentName
+        }
+        const graph: Graphic = new Graphic({
+          geometry: tPoint,
+          symbol: simpleMarkerSymbol,
+          attributes: attr,
+          popupTemplate: popupTemplate
+        })
+        graphLayer.add(graph)
+      })
+    }
+  }, [firePoints, graphLayer])
+
+  useEffect(() => {
+    if (fireAreas && graphLayer) {
+      console.log(fireAreas)
+      console.log("^^^ triggered fireAreas render")
+      const simpleFillSymbol = {
+        type: "simple-fill",
+        color: [255, 0, 0, 0.2],  // Red, opacity 80%
+        outline: {
+            color: [255, 255, 255],
+            width: 0
+        }
+     };
+     for (let i = 0; i < fireAreas.length; i++)
+     {
+      const polygon = new Polygon({ rings: fireAreas[i].geometry.rings })
+      const graph: Graphic = new Graphic({
+        geometry: polygon,
+        symbol: simpleFillSymbol
+      })
+      graphLayer.add(graph)
+     }
+    }
+  }, [fireAreas, graphLayer])
+  return <div className={styles.mapDiv} ref={mapDiv}></div> 
 };
 
 export default ESRIMap;

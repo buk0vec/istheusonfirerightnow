@@ -1,3 +1,4 @@
+/* eslint-disable import/no-anonymous-default-export */
 /* 
   index.ts
   TODO: Make the actual api lol
