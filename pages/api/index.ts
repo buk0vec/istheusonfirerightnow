@@ -1,7 +1,7 @@
 /* eslint-disable import/no-anonymous-default-export */
 /* 
   index.ts
-  TODO: Make the actual api lol
+  TODO: Here just to hold project structure. API maybe not needed (endpoint exposure is for losers)
 */
 
 import { NextApiRequest, NextApiResponse } from "next";
