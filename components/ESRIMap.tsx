@@ -11,7 +11,6 @@ import Extent from "@arcgis/core/geometry/Extent";
 import VectorTileLayer from "@arcgis/core/layers/VectorTileLayer";
 import Basemap from "@arcgis/core/Basemap";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer"
-import { ESRI_KEY } from "../api-keys"
 import FeatureSet from "@arcgis/core/rest/support/FeatureSet"
 import { FireObjectJSON } from "../types/fire-object"
 import SimpleRenderer from "@arcgis/core/renderers/SimpleRenderer";
