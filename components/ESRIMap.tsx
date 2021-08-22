@@ -30,7 +30,8 @@ const ESRIMap = ({ firePointJSON, fireAreaJSON }: ESRIMapProps) => {
   // On startup
   useEffect(() => {
     // Connect to API
-    esriConfig.apiKey = process.env.ESRI_KEY;
+    console.log("API_KEY: ", process.env.NEXT_PUBLIC_ESRI_KEY)
+    esriConfig.apiKey = process.env.NEXT_PUBLIC_ESRI_KEY;
     // Limits to MapView
     // TODO: Math out how big this must be
     const boundingBox: Extent = new Extent({
