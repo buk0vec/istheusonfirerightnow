@@ -39,7 +39,8 @@ export const getStaticProps: GetStaticProps = async () => {
     props: {
       firePointJSON,
       fireAreaJSON
-    }
+    },
+    revalidate: 60 * 60 * 6
   }
 }
 
