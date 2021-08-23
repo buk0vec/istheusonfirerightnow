@@ -2,7 +2,7 @@
   ESRIMap.tsx
   Contains component for wrapped ArcGIS JS map.
 */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
 import esriConfig from "@arcgis/core/config";
@@ -10,27 +10,41 @@ import styles from "./ESRIMap.module.css";
 import Extent from "@arcgis/core/geometry/Extent";
 import VectorTileLayer from "@arcgis/core/layers/VectorTileLayer";
 import Basemap from "@arcgis/core/Basemap";
-import FeatureLayer from "@arcgis/core/layers/FeatureLayer"
-import FeatureSet from "@arcgis/core/rest/support/FeatureSet"
-import { FireObjectJSON } from "../types/fire-object"
+import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
+import FeatureSet from "@arcgis/core/rest/support/FeatureSet";
+import { FireObjectJSON } from "../types/fire-object";
 import SimpleRenderer from "@arcgis/core/renderers/SimpleRenderer";
 import { FirePointJSON } from "../types/fire-point";
+import useSWR from "swr";
 import { FireAreaJSON } from "../types/fire-area";
+import fetch from "unfetch";
 
 export interface ESRIMapProps {
-  firePointJSON: FirePointJSON,
-  fireAreaJSON: FireAreaJSON
+  // firePointJSON: FirePointJSON,
+  // fireAreaJSON: FireAreaJSON
 }
 
+//Simple fetcher
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 // Wrapped map component
-const ESRIMap = ({ firePointJSON, fireAreaJSON }: ESRIMapProps) => {
+const ESRIMap = ({}: ESRIMapProps) => {
   // For ref'ing div to MapView
-  console.log("Map loading...")
   const mapDiv = useRef(null);
+  // Get JSON data from local åstorage
+  const { data: firePointsJSON, error: fperror } = useSWR<FirePointJSON>(
+    "/firepoints.json",
+    fetcher
+  );
+  const { data: fireAreasJSON, error: faerror } = useSWR<FireAreaJSON>(
+    "/fireareas.json",
+    fetcher
+  );
+  const [mapR, setMap] = useState<Map>(null);
   // On startup
   useEffect(() => {
     // Connect to API
-    console.log("API_KEY: ", process.env.NEXT_PUBLIC_ESRI_KEY)
+    console.log("Map loading...");
     esriConfig.apiKey = process.env.NEXT_PUBLIC_ESRI_KEY;
     // Limits to MapView
     // TODO: Math out how big this must be
@@ -59,49 +73,8 @@ const ESRIMap = ({ firePointJSON, fireAreaJSON }: ESRIMapProps) => {
     const map = new Map({
       basemap: bm,
     });
-    // Renderers for Feature Layers
-    const firePointsRenderer = {
-      type: "simple", 
-      symbol: {
-        type: "picture-marker",
-        url: "/fireicon.png", // Fire emoji (/public)
-        width: "20px",
-        height: "20px"
-      }
-    } 
-    const fireAreasRenderer = {
-      type: "simple",
-      symbol: {
-        type: "simple-fill",
-        color: [255, 0, 0, 0.2],  // Red, opacity 20%
-        outline: {
-            color: [255, 255, 255],
-            width: 0
-        }
-      }
-    }
-    // Popup for points
-    // TODO: Link areas to points
-    const popupTemplate: __esri.PopupTemplateProperties = {
-      title: "{IncidentName}",
-    }
-    // Create new FeatureSets
-    const firePointsFS = getSetFromREST(firePointJSON)
-    const fireAreasFS = getSetFromREST(fireAreaJSON)
-    // Make FeatureLayers from FSets and add them
-    const firePointsFL = new FeatureLayer({
-      source: firePointsFS.features,
-      fields: firePointsFS.fields,
-      renderer: firePointsRenderer as any as SimpleRenderer,
-      popupTemplate: popupTemplate,
-    })
-    const fireAreasFL = new FeatureLayer({
-      source: fireAreasFS.features,
-      fields: fireAreasFS.fields,
-      renderer: fireAreasRenderer as any as SimpleRenderer,
-    })
-    map.add(firePointsFL)
-    map.add(fireAreasFL)
+    // set map object for later addition
+    setMap(map);
     // MapView
     const view: MapView = new MapView({
       map: map,
@@ -109,10 +82,10 @@ const ESRIMap = ({ firePointJSON, fireAreaJSON }: ESRIMapProps) => {
       extent: boundingBox,
       center: [-95.95, 37.655],
       zoom: 4,
-      constraints: { 
-        minZoom: 4, 
-        geometry: baricadeBox, 
-        snapToZoom: false 
+      constraints: {
+        minZoom: 4,
+        geometry: baricadeBox,
+        snapToZoom: false,
       }, // Limited to box
     });
     // Hold until load
@@ -129,10 +102,68 @@ const ESRIMap = ({ firePointJSON, fireAreaJSON }: ESRIMapProps) => {
     return () => {
       view && view.destroy(); // Cleanup
     };
-  }, [fireAreaJSON, firePointJSON]);
+  }, []);
+  // When the firePointsJSON is loaded...
+  useEffect(() => {
+    if (firePointsJSON && mapR) {
+      console.log("Rendering points...");
+      // Image marker renderer
+      const firePointsRenderer = {
+        type: "simple",
+        symbol: {
+          type: "picture-marker",
+          url: "/fireicon.png", // Fire emoji (/public)
+          width: "20px",
+          height: "20px",
+        },
+      };
+      // Popup for points
+      // TODO: Link areas to points
+      const popupTemplate: __esri.PopupTemplateProperties = {
+        title: "{IncidentName}",
+      };
+      // Get FeatureSet from Local JSON
+      const firePointsFS = getSetFromREST(firePointsJSON);
+      // Construct FeatureLayer and add to map
+      const firePointsFL = new FeatureLayer({
+        source: firePointsFS.features,
+        fields: firePointsFS.fields,
+        renderer: firePointsRenderer as any as SimpleRenderer,
+        popupTemplate: popupTemplate,
+      });
+      mapR.add(firePointsFL);
+    }
+  }, [firePointsJSON, mapR]);
+
+  //When the fireAreasJSON is loaded...
+  useEffect(() => {
+    if (fireAreasJSON && mapR) {
+      console.log("Rendering areas...");
+      // Renderer using simple fill
+      const fireAreasRenderer = {
+        type: "simple",
+        symbol: {
+          type: "simple-fill",
+          color: [255, 0, 0, 0.2], // Red, opacity 20%
+          outline: {
+            color: [255, 255, 255],
+            width: 0,
+          },
+        },
+      };
+      // Create new FeatureSet
+      const fireAreasFS = getSetFromREST(fireAreasJSON);
+      // Make FeatureLayer from FSet and add to map
+      const fireAreasFL = new FeatureLayer({
+        source: fireAreasFS.features,
+        fields: fireAreasFS.fields,
+        renderer: fireAreasRenderer as any as SimpleRenderer,
+      });
+      mapR.add(fireAreasFL);
+    }
+  }, [fireAreasJSON, mapR]);
   // Simple div wrapper
-  return <div className={styles.mapDiv} ref={mapDiv}></div>
-  
+  return <div className={styles.mapDiv} ref={mapDiv}></div>;
 };
 
 // getSetFromREST()
@@ -143,7 +174,7 @@ const getSetFromREST = (rest: FireObjectJSON): FeatureSet => {
     geometryType: rest.geometryType,
     spatialReference: rest.spatialReference,
     fields: rest.fields,
-    features: rest.features
-  })
-}
+    features: rest.features,
+  });
+};
 export default ESRIMap;

@@ -3,46 +3,56 @@
   The main page.
 */
 
-import type { GetStaticProps, NextPage } from 'next'
-import dynamic from 'next/dynamic'
-import React from 'react'
-import ESRIMap, { ESRIMapProps } from '../components/ESRIMap';
-import { FireAreaJSON } from '../types/fire-area';
-import { FirePointJSON } from '../types/fire-point';
+import type { GetStaticProps, NextPage } from "next";
+import dynamic from "next/dynamic";
+import React from "react";
+import { ESRIMapProps } from "../components/ESRIMap";
+import path from "path";
+import { pullToFile } from "../util/pull-to-file";
 
-// Used to turn SSR off for the ESRIMap. Don't know if it's needed lol
-// const WebMapWithNoSSR = dynamic(() => import("../components/ESRIMap") as any, {
-//   // ssr: false,
-// });
+//Used to turn SSR off for the ESRIMap. Don't know if it's needed lol
+const WebMapWithNoSSR = dynamic(() => import("../components/ESRIMap"), {
+  ssr: false,
+});
 
-// Quick fetch func
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+// Hold refresh time
+interface IndexProps extends ESRIMapProps {
+  date: number;
+}
 
-interface IndexProps extends ESRIMapProps{}
-
-// The page. Pretty simple right now. 
-const Index: NextPage<IndexProps>  = ({ firePointJSON, fireAreaJSON }) => {
+// The page. Pretty simple right now.
+const Index: NextPage<IndexProps> = ({ date }) => {
   return (
     <div>
       <h1>Yes, it is. ️‍🔥️‍🔥️‍🔥 </h1>
-      <ESRIMap firePointJSON={firePointJSON} fireAreaJSON={fireAreaJSON} />
+      <p>Last updated at {new Date(date).toString()} </p>
+      <WebMapWithNoSSR />
     </div>
-  )
-}
+  );
+};
 
 // Get static Map data downloaded only on build
 export const getStaticProps: GetStaticProps = async () => {
-  const firePointJSON: FirePointJSON = await fetcher("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Locations/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,OBJECTID&outSR=4326&f=json")
-  const fireAreaJSON: FireAreaJSON = await fetcher("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID&outSR=4326&f=json")
-
-  return {  
+  // Get time of update
+  const date = Date.now();
+  // Pull map data to public folders (can't pass this data thru gSP due to size)
+  await Promise.all([
+    pullToFile(
+      "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Locations/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,OBJECTID&outSR=4326&f=json",
+      path.join(process.cwd(), "public/firepoints.json")
+    ),
+    pullToFile(
+      "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID&outSR=4326&f=json",
+      path.join(process.cwd(), "public/fireareas.json")
+    ),
+  ]);
+  // Return update time
+  return {
     props: {
-      firePointJSON,
-      fireAreaJSON
-    }
-  }
-}
+      date,
+    },
+    revalidate: 60 * 60 * 6, // Refresh data every 6 hours
+  };
+};
 
-
-
-export default Index
+export default Index;
