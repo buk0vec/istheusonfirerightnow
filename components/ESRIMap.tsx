@@ -17,6 +17,7 @@ import SimpleRenderer from "@arcgis/core/renderers/SimpleRenderer";
 import { FirePointJSON } from "../types/fire-point";
 import useSWR from "swr"
 import { FireAreaJSON } from "../types/fire-area";
+import fetch from 'unfetch'
 
 export interface ESRIMapProps {
   // firePointJSON: FirePointJSON,
@@ -30,8 +31,8 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 const ESRIMap = ({}: ESRIMapProps) => {
   // For ref'ing div to MapView
   const mapDiv = useRef(null);
-  const {data: firePointsJSON, error: fperror} = useSWR<FirePointJSON>("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Locations/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,OBJECTID&outSR=4326&f=json", fetcher)
-  const {data: fireAreasJSON, error: faerror} = useSWR<FireAreaJSON>("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID&outSR=4326&f=json", fetcher)
+  const {data: firePointsJSON, error: fperror} = useSWR<FirePointJSON>("/firepoints.json", fetcher)
+  const {data: fireAreasJSON, error: faerror} = useSWR<FireAreaJSON>("/fireareas.json", fetcher)
   const [mapR, setMap] = useState<Map>(null)
   // On startup
   useEffect(() => {
@@ -168,19 +169,3 @@ const getSetFromREST = (rest: FireObjectJSON): FeatureSet => {
 }
 export default ESRIMap;
 
-// Get static Map data downloaded only on build
-// export const getStaticProps: GetStaticProps = async () => {
-//   const firePointJSON: FirePointJSON = await fetcher("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Locations/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,OBJECTID&outSR=4326&f=json")
-//     .then((fp) => { console.log("Successfully pulled point data"); return fp } )
-//     .catch((e) => console.log("Error getting point data, ", e))
-//   const fireAreaJSON: FireAreaJSON = await fetcher("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Current_WildlandFire_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID&outSR=4326&f=json")
-//     .then((fa) => { console.log("Successfully pulled area data"); return fa } )  
-//     .catch((e) => console.log("Error getting area data, ", e))
-//   return {  
-//     props: {
-//       firePointJSON,
-//       fireAreaJSON
-//     },
-//     revalidate: 60 * 60 * 6
-//   }
-// }
