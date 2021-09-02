@@ -31,7 +31,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const ESRIMap = ({}: ESRIMapProps) => {
   // For ref'ing div to MapView
   const mapDiv = useRef(null);
-  // Get JSON data from local åstorage
+  // Get JSON data from local storage
   const { data: firePointsJSON, error: fperror } = useSWR<FirePointJSON>(
     "/firepoints.json",
     fetcher
@@ -172,7 +172,7 @@ const ESRIMap = ({}: ESRIMapProps) => {
 const getSetFromREST = (rest: FireObjectJSON): FeatureSet => {
   return FeatureSet.fromJSON({
     geometryType: rest.geometryType,
-    spatialReference: rest.spatialReference,
+    spatialReference: rest.spatialReference, 
     fields: rest.fields,
     features: rest.features,
   });

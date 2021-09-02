@@ -45,3 +45,5 @@ yarn-error.log*
 
 # My API key
 api-keys.ts
+
+/.vscode

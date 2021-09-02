@@ -9,6 +9,9 @@ import React from "react";
 import { ESRIMapProps } from "../components/ESRIMap";
 import path from "path";
 import { pullToFile } from "../util/pull-to-file";
+import { Flex, Heading, Box, Text } from "@chakra-ui/react";
+import { BoxProps, FlexProps } from "@chakra-ui/layout";
+import Head from "next/head"
 
 //Used to turn SSR off for the ESRIMap. Don't know if it's needed lol
 const WebMapWithNoSSR = dynamic(() => import("../components/ESRIMap"), {
@@ -20,14 +23,71 @@ interface IndexProps extends ESRIMapProps {
   date: number;
 }
 
+const IndexFlexProps: FlexProps = {
+  flexDir: "row",
+  overflow: "hidden",
+  outline: "20px dashed blue",
+  wrap: "nowrap",
+  justifyContent: "space-evenly",
+  alignItems: "stretch",
+  minHeight: "100%",
+  h: "100vh",
+  width: "100%",
+  padding: "0",
+  margin: "0",
+};
+
+const LeftSectionProps: FlexProps = {
+  w: "40%",
+  backgroundColor: "white",
+  height: "100%",
+  alignItems: "center",
+  wrap: "nowrap",
+  padding: "0",
+  margin: "0",
+  flexDir: "column",
+  justifyContent: "center",
+};
+
+const RightSectionProps: FlexProps = {
+  w: "60%",
+  height: "100%",
+  backgroundColor: "#020202",
+  alignItems: "center",
+  flexDir: "column",
+  wrap: "nowrap",
+  padding: "0",
+  margin: "0",
+  justifyContent: "center",
+  outline: "3px dashed green",
+};
+
+const VerticalCenterProps: FlexProps = {
+  direction: "row",
+  alignItems: "center",
+  outline: "3px dashed green",
+};
+
+const VFlex = (props: FlexProps) => (
+  <Flex {...VerticalCenterProps} flex={props.flex}>
+    {props.children}
+  </Flex>
+);
+
 // The page. Pretty simple right now.
 const Index: NextPage<IndexProps> = ({ date }) => {
   return (
-    <div>
-      <h1>Yes, it is. ️‍🔥️‍🔥️‍🔥 </h1>
-      <p>Last updated at {new Date(date).toString()} </p>
-      <WebMapWithNoSSR />
-    </div>
+    <Flex {...IndexFlexProps}>
+        <Flex {...LeftSectionProps}>
+          <Heading color="black" fontSize="9xl" letterSpacing="tight" textAlign="center" fontFamily='Secular One'> Yes, it is. 🔥️‍🔥️‍🔥</Heading>
+        </Flex>
+        <Flex {...RightSectionProps}>
+          <Box width="95%" height="60%" outline="3px dotted orange">
+            <WebMapWithNoSSR />
+            <Text color="white">Last updated at {new Date(date).toString()}</Text>
+          </Box>
+        </Flex>
+    </Flex>
   );
 };
 
